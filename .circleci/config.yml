@@ -1,68 +1,16 @@
- Original config.yml file:
- 
- version: 2.1
- jobs:
-   my-job:
-     docker:
-     - image: circleci/python:3-stretch-browsers
-     steps:
-       - aws-parameter-store/load
-       - checkout
- orbs:
-   aws-parameter-store: circleci/aws-parameter-store@1.0.0
-   aws-ecr/build_and_push_image:
-     docker:
-     - image: circleci/python:3-stretch-browsers
-     steps:
-     - run:
-         name: Install AWS CLI
-         command: |
-           if [[ $(command -v pip) == \"\" ]]; then
-             echo \"PIP is required to install AWS CLI and is not available.\"
-             exit 1
-           else
-             if [[ $(command -v sudo) == \"\" ]]; then
-               echo \"SUDO is required to install AWS CLI and is not available.\"
-               exit 1
-             else
-               if [[ $(command -v aws) == \"\" ]]; then
-                 sudo pip install awscli
-               else
-                 echo \"AWS CLI is already installed.\"
-               fi
-             fi
-           fi
-           Id=$(aws ssm get-parameters --names Account_Number --with-decryption)
-           echo $Id
-     - run:
-         name: Configure cli credentials
-         command: |
-           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile default
-           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY --profile default
-     - run:
-         name: Configure default region
-         command: |
-          aws configure set region us-east-1 --profile default
-     - checkout
-     - setup_remote_docker
-     - run:
-         name: Log into Amazon ECR
-         command: $(aws ecr get-login --no-include-email --region us-west-2)
-     - run:
-         name: Build docker image
-         command: |
-           docker build -t test .
-     - run:
-         name: Tagg the docker image
-         command: docker tag test:latest 806825938286.dkr.ecr.us-west-2.amazonaws.com/snyktest:latest      
-     - run:
-         name: Push image to Amazon ECR
-         command: docker push 806825938286.dkr.ecr.us-west-2.amazonaws.com/snyktest:latest
+version: 2.1
 
- workflows:
-   build-and-deploy:
-     jobs:
-     - aws-ecr/build_and_push_image
-   build_and_test:
-     jobs:
-       - my-job 
+orbs:
+  clair: ovotech/clair-scanner@1
+
+jobs:
+  scan_ecr:
+    executor: clair/default
+    steps:
+    - run: $(aws ecr get-login --no-include-email)
+    - clair/scan:
+        image: 848446468820.dkr.ecr.ca-central-1.amazonaws.com/ssm-session:amazonssh
+workflows:
+  test:
+    jobs:
+    - scan_ecr        
