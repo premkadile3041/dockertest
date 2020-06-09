@@ -9,7 +9,7 @@ jobs:
     steps:
     - run: $(aws ecr get-login --region ca-central-1 --no-include-email)
     - clair/scan:
-        image: 848446468820.dkr.ecr.ca-central-1.amazonaws.com/ssm-session:node
+        image: 848446468820.dkr.ecr.ca-central-1.amazonaws.com/clair-test:node
 workflows:
   test:
     jobs:
